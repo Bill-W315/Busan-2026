@@ -1,0 +1,670 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>釜山 4 日遊</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f4f2ed; --panel: rgba(255,255,255,.94); --ink: #1c1c1f; --muted: #5f5f66;
+  --line: #e3e0d9; --chip: #ece9e2; --shadow: 0 12px 40px rgba(20,20,30,.16);
+  --accent: #e6457a;
+  --s-flight: #2a78d6; --s-hotel: #eb6834; --s-food: #1baf7a; --s-taxi: #eda100; --s-misc: #e87ba4;
+  --panel-w: min(500px, 40vw);
+  --nk: #e34948; --rok: #2a78d6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101113; --panel: rgba(26,27,31,.94); --ink: #f2f2f4; --muted: #a8a8b0;
+    --line: #2d2e33; --chip: #26272c; --shadow: 0 12px 40px rgba(0,0,0,.55);
+    --s-flight: #3987e5; --s-hotel: #d95926; --s-food: #199e70; --s-taxi: #c98500; --s-misc: #d55181;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101113; --panel: rgba(26,27,31,.94); --ink: #f2f2f4; --muted: #a8a8b0;
+  --line: #2d2e33; --chip: #26272c; --shadow: 0 12px 40px rgba(0,0,0,.55);
+  --s-flight: #3987e5; --s-hotel: #d95926; --s-food: #199e70; --s-taxi: #c98500; --s-misc: #d55181;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg); color: var(--ink); overflow: hidden;
+  font: 18px/1.6 "Noto Sans TC", Inter, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.zh { font-family: "Noto Sans TC", Inter, sans-serif; }
+#map { position: fixed; inset: 0; background: var(--bg); }
+
+/* top bar */
+#top { position: fixed; top: 16px; left: 16px; right: 16px; z-index: 1000; display: flex; align-items: center; gap: 10px; pointer-events: none; }
+#top > * { pointer-events: auto; }
+.brand, .daychip, .partchip {
+  background: var(--panel); backdrop-filter: blur(12px); box-shadow: var(--shadow);
+  padding: 7px 13px; border-radius: 999px; font-weight: 700; font-size: 14px; white-space: nowrap;
+}
+#nav { display: flex; gap: 6px; flex-wrap: wrap; }
+.daychip, .partchip { border: 0; cursor: pointer; font: inherit; font-size: 13px; font-weight: 600; color: var(--ink); display: flex; align-items: center; gap: 7px; }
+.daychip i { width: 9px; height: 9px; border-radius: 50%; background: var(--c); }
+.daychip.on, .partchip.on { background: var(--c); color: #fff; }
+.daychip.on i { background: #fff; }
+#progress { position: fixed; top: 0; left: 0; height: 4px; background: var(--accent); z-index: 1001; transition: width .4s, background .4s; }
+
+/* story panel */
+#panel {
+  position: fixed; z-index: 1000; top: 70px; right: 16px; bottom: 16px; width: var(--panel-w);
+  background: var(--panel); backdrop-filter: blur(16px); box-shadow: var(--shadow);
+  border-radius: 20px; overflow-y: auto; padding: 32px 32px 26px;
+  transition: transform .45s cubic-bezier(.2,.8,.2,1), opacity .3s;
+}
+body.wide { --panel-w: min(760px, 58vw); }
+body.staged { --panel-w: min(420px, 30vw); }
+body.hide-panel #panel { transform: translateX(calc(100% + 32px)); opacity: 0; }
+#panel .enter { animation: rise .45s cubic-bezier(.2,.8,.2,1); }
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+.eyebrow { font-size: 13px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--c, var(--accent)); margin-bottom: 10px; }
+h1 { font-size: 56px; line-height: 1.04; margin: 0 0 10px; letter-spacing: -.02em; }
+h2 { font-size: 38px; line-height: 1.12; margin: 0 0 6px; letter-spacing: -.01em; }
+h3 { font-size: 15px; margin: 26px 0 8px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.sub { color: var(--muted); font-size: 18px; margin-bottom: 16px; }
+.blurb { font-size: 21px; line-height: 1.45; margin: 14px 0 0; }
+.box {
+  margin-top: 16px; padding: 14px 16px; border-radius: 14px; font-size: 17px;
+  background: color-mix(in srgb, var(--c, var(--accent)) 11%, transparent);
+  border-left: 4px solid var(--c, var(--accent));
+}
+.box b { display: block; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--c, var(--accent)); margin-bottom: 2px; }
+.box.history { background: var(--chip); border-left-color: var(--muted); }
+.box.history b { color: var(--muted); }
+.list.war li { display: block; cursor: pointer; padding: 8px 10px; margin: 0 -10px; border-radius: 10px; }
+.list.war li .row { display: flex; gap: 12px; align-items: baseline; }
+.list.war li:not(.on) { opacity: .55; }
+.list.war li.on { background: var(--chip); opacity: 1; }
+.list.war .det { display: none; font-size: 16px; line-height: 1.6; margin: 8px 0 2px 94px; }
+.list.war li.on .det { display: block; }
+.list.war .det .box { font-size: 15px; margin-top: 10px; }
+.warlegend { display: flex; gap: 18px; font-size: 14px; color: var(--muted); margin: 8px 0 4px; }
+.warlegend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.box.tip { background: transparent; border: 1px dashed var(--line); border-left: 4px solid var(--c, var(--accent)); }
+.cost { display: inline-flex; gap: 8px; align-items: center; margin-top: 16px; padding: 8px 14px; border-radius: 999px; background: var(--chip); font-weight: 600; font-size: 17px; }
+.badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.badge { font-size: 13px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: var(--chip); }
+
+.stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 22px 0; }
+.stats.three { grid-template-columns: .8fr 1.15fr 1fr; }
+.stat { background: var(--chip); border-radius: 14px; padding: 14px 16px; }
+.stat b { display: block; font-size: 32px; line-height: 1.1; letter-spacing: -.02em; }
+.stat span { font-size: 14px; color: var(--muted); }
+
+.list { list-style: none; padding: 0; margin: 14px 0 0; }
+.list li { display: flex; gap: 12px; align-items: baseline; padding: 9px 0; border-top: 1px solid var(--line); }
+.list.jump li { cursor: pointer; }
+.list.jump li:hover { color: var(--c); }
+.list .n { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--c); color: #fff; font-size: 13px; font-weight: 700; display: grid; place-items: center; transform: translateY(4px); }
+.list small { color: var(--muted); display: block; font-size: 14px; }
+.list .x { text-decoration: line-through; color: var(--muted); }
+.list .yr { flex: none; width: 82px; font-weight: 700; color: var(--c, var(--accent)); }
+.list .amt { margin-left: auto; font-weight: 600; white-space: nowrap; }
+
+/* budget chart */
+.hero { font-size: 64px; font-weight: 800; letter-spacing: -.03em; line-height: 1; margin: 6px 0 6px; }
+.stack { display: flex; gap: 2px; height: 34px; margin: 22px 0 12px; }
+.stack div { border-radius: 4px; min-width: 6px; }
+.legend { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 18px; }
+.legend div { display: flex; align-items: center; gap: 10px; font-size: 16px; }
+.legend i { flex: none; width: 12px; height: 12px; border-radius: 3px; }
+.legend b { margin-left: auto; font-weight: 600; }
+.legend span { color: var(--muted); font-size: 14px; }
+.bars { display: flex; align-items: flex-end; gap: 14px; height: 190px; margin-top: 14px; padding-bottom: 28px; border-bottom: 1px solid var(--line); position: relative; }
+.bars .col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; position: relative; }
+.bars .bar { width: 100%; max-width: 64px; border-radius: 4px 4px 0 0; background: var(--s-flight); }
+.bars .val { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.bars .lab { position: absolute; bottom: -26px; font-size: 13px; color: var(--muted); }
+.fine { font-size: 13px; color: var(--muted); margin-top: 12px; }
+#tip { position: fixed; z-index: 3000; pointer-events: none; background: var(--panel); color: var(--ink); box-shadow: var(--shadow); border-radius: 8px; padding: 6px 10px; font-size: 13px; display: none; }
+
+/* photo stage */
+#stage {
+  position: fixed; z-index: 999; top: 70px; left: 16px; bottom: 16px; right: calc(var(--panel-w) + 32px);
+  border-radius: 20px; overflow: hidden; background: #000; box-shadow: var(--shadow); display: none;
+}
+body.staged #stage { display: block; }
+body.staged.hide-panel #stage { right: 16px; }
+#stage .bg { position: absolute; inset: -40px; background-size: cover; background-position: center; filter: blur(30px) brightness(.55); }
+#stage .fg { position: absolute; inset: 0; }
+#stage .fg img, #stage .fg video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; animation: fade .4s; }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+#stage .count { position: absolute; top: 14px; right: 14px; background: rgba(0,0,0,.55); color: #fff; font-size: 13px; font-weight: 600; padding: 4px 10px; border-radius: 999px; }
+#stage .cap { position: absolute; left: 0; right: 0; bottom: 0; padding: 40px 260px 16px 20px; color: #fff; font-size: 15px; background: linear-gradient(transparent, rgba(0,0,0,.6)); pointer-events: none; }
+body:not(.nomini) #stage .cap { padding-left: 282px; }
+#stage .thumbs { position: absolute; right: 14px; bottom: 14px; display: flex; gap: 6px; max-width: 55%; overflow-x: auto; }
+#stage .thumbs button { flex: none; width: 54px; height: 54px; padding: 0; border: 2px solid transparent; border-radius: 8px; overflow: hidden; cursor: pointer; background: #222; opacity: .7; }
+#stage .thumbs button.on { border-color: #fff; opacity: 1; }
+#stage .thumbs img, #stage .thumbs video { width: 100%; height: 100%; object-fit: cover; display: block; }
+#mini { position: absolute; left: 14px; bottom: 14px; width: 250px; height: 170px; border-radius: 14px; border: 3px solid #fff; box-shadow: 0 6px 20px rgba(0,0,0,.45); z-index: 2; }
+body.nomini #mini { display: none; }
+
+/* map pins */
+.pin {
+  width: 28px; height: 28px; border-radius: 50%; background: var(--c); color: #fff;
+  display: grid; place-items: center; font: 700 12px Inter, sans-serif;
+  border: 2.5px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,.35); transition: opacity .4s, transform .4s;
+}
+.pin-dot { width: 12px; height: 12px; margin: 8px; border-width: 2px; }
+.pin[data-state="hidden"] { opacity: 0; transform: scale(.3); }
+.pin[data-state="preview"] { opacity: .45; transform: scale(.75); }
+.pin[data-state="faded"] { opacity: .35; transform: scale(.7); }
+.pin[data-state="current"] { transform: scale(1.35); animation: pulse 1.8s infinite; }
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c) 60%, transparent), 0 2px 8px rgba(0,0,0,.35); }
+  70% { box-shadow: 0 0 0 16px transparent, 0 2px 8px rgba(0,0,0,.35); }
+  100% { box-shadow: 0 0 0 0 transparent, 0 2px 8px rgba(0,0,0,.35); }
+}
+.pin-x { background: #8a8a92; font-size: 16px; }
+.leaflet-tooltip.x-tip { background: var(--panel); color: var(--muted); border: 0; box-shadow: var(--shadow); text-decoration: line-through; font: 500 13px Inter, "Noto Sans TC", sans-serif; }
+.leaflet-tooltip.x-tip::before { display: none; }
+.leaflet-tooltip.war-tip { background: var(--panel); color: var(--ink); border: 0; box-shadow: var(--shadow); font: 600 14px "Noto Sans TC", Inter, sans-serif; }
+.leaflet-tooltip.war-tip::before { display: none; }
+.leaflet-control-attribution { font-size: 10px; }
+
+#hint { position: fixed; left: 16px; bottom: 16px; z-index: 998; font-size: 12px; color: var(--muted); background: var(--panel); backdrop-filter: blur(12px); padding: 6px 12px; border-radius: 999px; box-shadow: var(--shadow); }
+#hint kbd { font: 600 11px Inter, sans-serif; background: var(--chip); border-radius: 4px; padding: 1px 5px; }
+body.staged #hint { display: none; }
+
+#pager { display: none; position: fixed; z-index: 1002; right: 16px; bottom: 16px; gap: 10px; }
+#pager button { width: 52px; height: 52px; border-radius: 50%; border: 0; font: 600 28px/1 Inter, sans-serif; color: #fff; background: var(--accent); box-shadow: var(--shadow); cursor: pointer; }
+#pager button:first-child { background: var(--panel); color: var(--ink); }
+@media (max-width: 760px), (hover: none) { #pager { display: flex; } #hint { display: none; } }
+#panel { scrollbar-color: var(--line) transparent; }
+
+@media (max-width: 760px) {
+  #nav { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+  #nav::-webkit-scrollbar { display: none; }
+  #top { pointer-events: auto; }
+  #panel { padding-bottom: 84px; }
+  .list.war .det { margin-left: 0; }
+  .list.war li .row { gap: 10px; }
+  .warlegend { flex-wrap: wrap; gap: 6px 14px; }
+  body { font-size: 16px; }
+  #top { top: 10px; left: 10px; right: 10px; }
+  .brand, #hint { display: none; }
+  body, body.wide, body.staged { --panel-w: auto; }
+  #panel { top: auto; left: 8px; right: 8px; bottom: 8px; width: auto; height: 50vh; padding: 22px 18px 18px; border-radius: 18px; }
+  body.hide-panel #panel { transform: translateY(calc(100% + 16px)); }
+  #stage { top: 56px; left: 8px; right: 8px; bottom: calc(50vh + 16px); }
+  body.staged.hide-panel #stage { bottom: 8px; right: 8px; }
+  #mini { width: 120px; height: 90px; }
+  h1 { font-size: 36px; } h2 { font-size: 26px; } .hero { font-size: 44px; } .blurb { font-size: 18px; }
+  .legend, .stats.three { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<div id="map"></div>
+<section id="stage"><div class="bg"></div><div class="fg"></div><div class="cap"></div><div class="count"></div><div class="thumbs"></div><div id="mini"></div></section>
+<div id="top"><div class="brand">🇰🇷 釜山 2026</div><div id="nav"></div></div>
+<aside id="panel"><div id="card"></div></aside>
+<div id="hint"><kbd>←</kbd> <kbd>→</kbd> 上一頁 / 下一頁・<kbd>1</kbd>–<kbd>4</kbd> 跳到第幾天・<kbd>I</kbd> 旅程資訊・<kbd>M</kbd> 隱藏面板・<kbd>T</kbd> 深淺色・<kbd>F</kbd> 全螢幕</div>
+<div id="tip"></div>
+<div id="pager"><button id="pgPrev" aria-label="上一頁">‹</button><button id="pgNext" aria-label="下一頁">›</button></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="trip-data.js"></script>
+<script src="korea-shape.js"></script>
+<script src="media.js" onerror="window.TRIP_MEDIA = {}"></script>
+<script>
+const T = window.TRIP;
+const MEDIA = window.TRIP_MEDIA || {};
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const mediaFor = id => MEDIA[id] || [];
+const $ = s => document.querySelector(s);
+const krw = n => '₩' + Math.round(n).toLocaleString('en');
+const twd = n => 'NT$' + Math.round(n).toLocaleString('en');
+
+// ---------- maps ----------
+const TILES = {
+  light: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  dark: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}'
+};
+const isDark = () => {
+  const t = document.documentElement.dataset.theme;
+  return t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+};
+const map = L.map('map', { zoomControl: false }).setView([35.1, 129.03], 12);
+// keepBuffer + no refetch mid-zoom: fewer blank tiles while the camera flies between slides
+const tiles = L.tileLayer(TILES.light, { attribution: '&copy; OpenStreetMap contributors · Esri', maxZoom: 19, maxNativeZoom: 16, keepBuffer: 6, updateWhenZooming: false }).addTo(map);
+const mini = L.map('mini', { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false });
+const miniTiles = L.tileLayer(TILES.light, { maxNativeZoom: 16 }).addTo(mini);
+mini.setView([35.1, 129.03], 12);
+const miniLayer = L.layerGroup().addTo(mini);
+const syncTiles = () => { const u = isDark() ? TILES.dark : TILES.light; tiles.setUrl(u); miniTiles.setUrl(u); };
+syncTiles();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncTiles);
+
+const layer = L.layerGroup().addTo(map);
+const ALL = [];
+const pinIcon = (color, label, cls = '', state = 'hidden') => L.divIcon({
+  className: '', iconSize: [28, 28], iconAnchor: [14, 14],
+  html: `<div class="pin ${cls}" style="--c:${color}" data-state="${state}">${label}</div>`
+});
+// The 4 days, then the extra sections (fun finds, places for next time), which share the stop format.
+const GROUPS = T.days.concat((T.sections || []).map(sec => Object.assign(sec, { section: true, dropped: [], movedOut: [] })));
+GROUPS.forEach((d, di) => {
+  let n = 0;
+  d.stops.forEach((s, si) => {
+    Object.assign(s, { di, si, color: d.color, section: !!d.section });
+    if (!s.transit) s.num = ++n;
+    s.marker = L.marker([s.lat, s.lng], { icon: pinIcon(d.color, s.transit ? '' : s.num, s.transit ? 'pin-dot' : ''), keyboard: false }).addTo(map);
+    s.marker.on('click', () => { const k = slides.findIndex(x => x.type === 'stop' && x.di === di && x.si === si); if (k >= 0) go(k); });
+    ALL.push(s);
+  });
+});
+const localStops = ALL.filter(s => s.kind !== 'flight' && !s.section);
+const boundsOf = pts => L.latLngBounds(pts.map(p => [p.lat, p.lng]));
+const TPE = ALL.find(s => s.kind === 'flight');
+const PUS = ALL.find(s => s.kind === 'airport');
+
+function setPin(s, state) {
+  const el = s.marker.getElement();
+  if (!el) return;
+  el.firstChild.dataset.state = state;
+  el.style.pointerEvents = state === 'hidden' ? 'none' : 'auto';
+  s.marker.setZIndexOffset(state === 'current' ? 1000 : 0);
+}
+function routePts(day, upto) { return day.stops.filter(s => s.kind !== 'flight' && s.si <= upto).map(s => [s.lat, s.lng]); }
+function route(day, upto, style, target = layer) {
+  if (day.section) return;  // section places are not a route
+  const pts = routePts(day, upto);
+  if (pts.length > 1) L.polyline(pts, { color: day.color, weight: 4, lineCap: 'round', lineJoin: 'round', ...style }).addTo(target);
+}
+function flightArc() {
+  const a = [TPE.lat, TPE.lng], b = [PUS.lat, PUS.lng], mid = [(a[0] + b[0]) / 2 + 1.6, (a[1] + b[1]) / 2 - 2.2], pts = [];
+  for (let t = 0; t <= 1.0001; t += 1 / 40) pts.push([0, 1].map(k => (1 - t) ** 2 * a[k] + 2 * (1 - t) * t * mid[k] + t * t * b[k]));
+  L.polyline(pts, { color: '#e6457a', weight: 3, dashArray: '2 8', lineCap: 'round' }).addTo(layer);
+  [TPE, PUS].forEach(p => L.marker([p.lat, p.lng], { icon: pinIcon('#e6457a', '✈', '', 'past') }).addTo(layer));
+}
+function droppedPins(day, labels) {
+  day.dropped.forEach(x => {
+    const m = L.marker([x.lat, x.lng], { icon: pinIcon('#8a8a92', '×', 'pin-x', 'past') }).addTo(layer);
+    if (labels) m.bindTooltip(esc(x.name), { permanent: true, direction: 'top', offset: [0, -14], className: 'x-tip' });
+  });
+}
+
+// camera that respects the story panel (and the photo stage)
+const mobile = () => innerWidth <= 760;
+const panelHidden = () => document.body.classList.contains('hide-panel');
+function padding() {
+  const p = $('#panel');
+  if (panelHidden()) return { paddingTopLeft: [60, 90], paddingBottomRight: [60, 60] };
+  return mobile()
+    ? { paddingTopLeft: [30, 70], paddingBottomRight: [30, p.offsetHeight + 30] }
+    : { paddingTopLeft: [60, 90], paddingBottomRight: [p.offsetWidth + 70, 50] };
+}
+function flyBounds(b, maxZoom = 15) { map.flyToBounds(b, { ...padding(), maxZoom, duration: 1.6 }); }
+function flyPoint(s, z = 15) {
+  const p = $('#panel');
+  const off = panelHidden() ? [0, 0] : mobile() ? [0, p.offsetHeight / 2] : [p.offsetWidth / 2 + 16, 0];
+  map.flyTo(map.unproject(map.project([s.lat, s.lng], z).add(off), z), z, { duration: 1.6 });
+}
+
+// ---------- money ----------
+const rate = T.krwPerTwd;
+const ex = T.expenses;
+const sumKrw = cat => ex.filter(e => e.cat === cat && e.krw).reduce((a, e) => a + e.krw, 0);
+const sumTwd = cat => ex.filter(e => e.cat === cat && e.twd).reduce((a, e) => a + e.twd, 0);
+const krwTotal = ex.reduce((a, e) => a + (e.krw || 0), 0);
+const CATS = [
+  { key: 'flight', label: '機票', twd: T.flightCostTwd },
+  { key: 'hotel', label: '住宿・3 晚', twd: T.hotel.costTwd },
+  { key: 'food', label: '餐飲小吃', twd: sumKrw('food') / rate + sumTwd('food'), krw: sumKrw('food') },
+  { key: 'taxi', label: '計程車', twd: sumKrw('taxi') / rate + sumTwd('taxi'), krw: sumKrw('taxi') },
+  { key: 'misc', label: '雜支（估）', twd: T.misc.twd }
+];
+const grandTwd = CATS.reduce((a, c) => a + c.twd, 0);
+const byDate = [...new Set(ex.filter(e => e.krw).map(e => e.date))].map(d => ({ d, krw: ex.filter(e => e.date === d && e.krw).reduce((a, e) => a + e.krw, 0) }));
+const topFood = ex.filter(e => e.cat === 'food').sort((a, b) => b.krw - a.krw).slice(0, 4);
+
+// ---------- stats ----------
+const visited = ALL.filter(s => !s.transit && !s.section && !['flight', 'airport', 'hotel'].includes(s.kind));
+const mediaCount = Object.values(MEDIA).reduce((a, l) => a + l.filter(m => !m.stock).length, 0);
+
+// ---------- slides ----------
+const slides = [{ type: 'title' }, { type: 'part', part: 1 }, ...T.history.map((_, i) => ({ type: 'history', i })), { type: 'budget' }, { type: 'part', part: 2 }];
+GROUPS.forEach((d, di) => {
+  slides.push({ type: 'day', di });
+  d.stops.forEach((s, si) => {
+    if (s.transit) return;
+    if (s.quiz && mediaFor(s.id).some(m => m.type === 'image')) slides.push({ type: 'quiz', di, si });
+    slides.push({ type: 'stop', di, si });
+  });
+});
+if (mediaFor('_unsorted').length) slides.push({ type: 'gallery' });
+slides.push({ type: 'finale' });
+
+$('#nav').innerHTML = `<button class="partchip" data-go="info" style="--c:#e6457a">旅程資訊</button>` +
+  GROUPS.map((d, i) => `<button class="daychip" data-di="${i}" style="--c:${d.color}"><i></i>${d.section ? esc(d.nav) : `第 ${d.n} 天`}</button>`).join('');
+$('#nav').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  go(b.dataset.go ? slides.findIndex(x => x.type === 'part') : slides.findIndex(x => x.type === 'day' && x.di === +b.dataset.di));
+});
+
+// ---------- card builders ----------
+const WEEK = { Sun: '日', Mon: '一', Tue: '二', Wed: '三', Thu: '四', Fri: '五', Sat: '六' };
+const dayLabel = d => d.section ? d.label : `第 ${d.n} 天・${d.date.slice(5).replace('-', '/')}（${WEEK[d.weekday]}）`;
+function badges(s) {
+  const b = [];
+  if (s.star) b.push('<span class="badge">⭐ 必訪</span>');
+  if (s.tag === 'added') b.push('<span class="badge">✨ 計畫外</span>');
+  const m = mediaFor(s.id);
+  if (m.length && m.every(x => x.stock)) b.push('<span class="badge">🌐 網路圖片</span>');
+  return b.length ? `<div class="badges">${b.join('')}</div>` : '';
+}
+const cards = {
+  title: () => `<div class="eyebrow">旅遊分享・${esc(T.dates)}</div>
+    <h1>${esc(T.title)}</h1>
+    <div class="sub" style="font-size:22px">${esc(T.titleZh)}</div>
+    <div class="sub">${T.travelers.map(esc).join(' & ')}</div>
+    <div class="stats">
+      <div class="stat"><b>4</b><span>天・3 晚</span></div>
+      <div class="stat"><b>${visited.length}</b><span>個實際去過的地方</span></div>
+      <div class="stat"><b>≈${twd(grandTwd)}</b><span>每人總花費</span></div>
+      <div class="stat"><b>${mediaCount || '—'}</b><span>張照片和影片</span></div>
+    </div>
+    <div class="sub">${touchUI() ? '點右下角 <b>›</b> 或左右滑動開始' : '按 <b>→</b> 開始'}</div>`,
+
+  part: sl => sl.part === 1
+    ? `<div class="eyebrow">第一部分</div><h1>旅程總覽</h1>
+       <ul class="list"><li>🏙️ 認識釜山</li><li>📜 韓戰：1950–1953（地圖看戰線變化）</li><li>🕊️ 臨時首都的 1,023 天</li><li>🧭 戰爭留下的痕跡</li><li>💰 花了多少錢</li></ul>`
+    : `<div class="eyebrow">第二部分</div><h1>我們去過的地方</h1>
+       <div class="sub">4 天・${visited.length} 個地方</div>
+       <ul class="list jump">${T.days.map((d, i) => `<li data-day="${i}" style="--c:${d.color}"><span class="n">${d.n}</span><div>${esc(d.title)}<small>${esc(d.titleZh)}</small></div></li>`).join('')}</ul>`,
+
+  history: sl => {
+    const x = T.history[sl.i];
+    return `<div class="eyebrow">${esc(x.eyebrow)}</div><h2>${esc(x.title)}</h2>
+    ${x.lead ? `<p class="blurb">${esc(x.legend && touchUI() ? x.lead.replace('按 →', '點 ›') : x.lead)}</p>` : ''}
+    ${x.facts ? `<div class="stats">${x.facts.map(f => `<div class="stat"><b>${esc(f.b)}</b><span>${esc(f.span)}</span></div>`).join('')}</div>` : ''}
+    ${x.legend ? `<div class="warlegend"><span><i style="background:var(--nk)"></i>北韓（與中國軍隊）控制</span><span><i style="background:var(--rok)"></i>南韓與聯合國軍控制</span></div>` : ''}
+    ${x.timeline && x.legend ? `<ul class="list war">${x.timeline.map((t, k) => `<li data-ev="${k}" class="${k === ev ? 'on' : ''}"><div class="row"><span class="yr">${esc(t.year)}</span><div>${esc(t.text)}</div></div><div class="det">${esc(t.detail)}${t.box ? `<div class="box"><b>🚢 小故事</b>${esc(t.box)}</div>` : ''}</div></li>`).join('')}</ul>` : ''}
+    ${x.timeline && !x.legend ? `<ul class="list">${x.timeline.map(t => `<li><span class="yr">${esc(t.year)}</span><div>${esc(t.text)}</div></li>`).join('')}</ul>` : ''}
+    ${x.bullets ? `<ul class="list">${x.bullets.map(t => `<li><div>${esc(t)}</div></li>`).join('')}</ul>` : ''}
+    ${x.box ? `<div class="box"><b>${esc(x.box.title)}</b>${esc(x.box.text)}</div>` : ''}`;
+  },
+
+  budget: () => `<div class="eyebrow">第一部分・花費</div><h2>每人總花費</h2>
+    <div class="hero">≈${twd(grandTwd)}</div>
+    <div class="sub">記帳在韓國花了 ${krw(krwTotal)}，加上機票、住宿和約 ${twd(T.misc.twd)} 的雜支</div>
+    <div class="stack" role="img" aria-label="花費比例">${CATS.map(c => `<div style="flex:${c.twd};background:var(--s-${c.key})" data-tip="${c.label}：${twd(c.twd)}（${Math.round(c.twd / grandTwd * 100)}%）"></div>`).join('')}</div>
+    <div class="legend">${CATS.map(c => `<div data-tip="${c.label}${c.krw ? '：' + krw(c.krw) : ''}"><i style="background:var(--s-${c.key})"></i>${c.label}<b>${twd(c.twd)}</b><span>${Math.round(c.twd / grandTwd * 100)}%</span></div>`).join('')}</div>
+    <h3>每天在韓國的花費</h3>
+    <div class="bars">${(() => { const max = Math.max(...byDate.map(b => b.krw)); return byDate.map(b => `<div class="col" data-tip="${b.d}：${krw(b.krw)}"><div class="val">${krw(b.krw / 1000)}k</div><div class="bar" style="height:${b.krw / max * 100}%"></div><div class="lab">${b.d}</div></div>`).join(''); })()}</div>
+    <div class="sub" style="margin-top:16px">🍖 最貴的幾餐：${topFood.slice(0, 3).map(e => `${esc(e.item)} ${krw(e.krw)}`).join('・')}</div>
+    <div class="fine">${esc(T.cash)}。以約 ₩${rate} = NT$1 換算。機票在 ${esc(T.flightBookedVia)} 訂購；住宿為 ${esc(T.hotel.name)} ${T.hotel.nights} 晚。金額為記帳 App 中的個人花費；雜支為${esc(T.misc.items)}，約略估算。</div>`,
+
+  day: (sl, d) => `<div class="eyebrow">${dayLabel(d)}</div>
+    <h1 style="font-size:44px">${esc(d.title)}</h1>
+    <div class="sub">${esc(d.titleZh)}</div>
+    <ul class="list jump">${d.stops.filter(s => !s.transit).map(s => `<li data-jump="${s.di}:${s.si}"><span class="n">${s.num}</span><div>${esc(s.name)}${s.tag === 'added' ? ' ✨' : ''}<small>${esc(s.sub)}</small></div></li>`).join('')}</ul>`,
+
+  stop: (sl, d, s) => `<div class="eyebrow">${dayLabel(d)}・${s.num} / ${d.stops.filter(x => !x.transit).length}</div>
+    ${badges(s)}
+    <h2>${esc(s.name)}</h2>
+    <div class="sub">${esc(s.sub)}</div>
+    ${s.blurb ? `<p class="blurb">${esc(s.blurb)}</p>` : ''}
+    ${s.cost ? `<div class="cost">💰 ${esc(s.cost)}</div>` : ''}
+    ${s.history ? `<div class="box history"><b>📜 歷史小知識</b>${esc(s.history)}</div>` : ''}
+    ${s.tip ? `<div class="box tip"><b>💡 小提醒</b>${esc(s.tip)}</div>` : ''}
+    ${s.note ? `<div class="box"><b>我們的筆記</b>${esc(s.note)}</div>` : ''}`,
+
+  quiz: (sl, d) => `<div class="eyebrow">${dayLabel(d)}・猜猜看</div><h2>這是哪裡？🤔</h2>
+    <div class="sub">大家猜猜看，按 → 揭曉答案。</div>`,
+
+  gallery: () => `<div class="eyebrow">彩蛋</div><h2>更多回憶</h2><div class="sub">沒辦法對應到地點的照片。</div>`,
+
+  finale: () => {
+    const sh = T.sharing || {};
+    const bullets = (title, arr) => arr && arr.length ? `<h3>${title}</h3><ul class="list">${arr.map(x => `<li><div>${esc(x)}</div></li>`).join('')}</ul>` : '';
+    return `<div class="eyebrow">總結</div><h1>감사합니다！</h1><div class="sub">謝謝大家，有問題歡迎發問！</div>
+      <div class="stats">
+        <div class="stat"><b>${visited.length}</b><span>個地方</span></div>
+        <div class="stat"><b>≈${twd(grandTwd)}</b><span>每人總花費</span></div>
+      </div>
+      ${bullets('最難忘的時刻', sh.topMoments)}
+      ${sh.bestFood ? `<h3>最好吃</h3><p class="blurb">${esc(sh.bestFood)}</p>` : ''}
+      ${bullets('小提醒', sh.tips)}`;
+  }
+};
+
+// ---------- Korean War front lines ----------
+let ev = 0;
+const warLayer = L.layerGroup().addTo(map);
+// The war shading lives in its own SVG, clipped to the peninsula's coastline so the sea stays clear.
+map.createPane('war').style.zIndex = 390;
+const warSvg = L.svg({ pane: 'war', padding: 1 });
+let warClipReady = false;
+function clipWarToLand() {
+  if (warClipReady || !warSvg._container) return;
+  const NS = 'http://www.w3.org/2000/svg', svg = warSvg._container;
+  const defs = document.createElementNS(NS, 'defs'), clip = document.createElementNS(NS, 'clipPath'), use = document.createElementNS(NS, 'use');
+  clip.id = 'korea-clip';
+  use.setAttribute('href', '#korea-shape');
+  clip.appendChild(use); defs.appendChild(clip); svg.insertBefore(defs, svg.firstChild);
+  warSvg._rootGroup.setAttribute('clip-path', 'url(#korea-clip)');
+  warClipReady = true;
+}
+const warSlide = () => { const sl = slides[idx]; return sl && sl.type === 'history' && T.history[sl.i].legend ? T.history[sl.i] : null; };
+function drawWar() {
+  warLayer.clearLayers();
+  const x = warSlide(); if (!x) return;
+  const e = x.timeline[ev], css = getComputedStyle(document.documentElement);
+  const nk = css.getPropertyValue('--nk').trim(), rok = css.getPropertyValue('--rok').trim();
+  const held = [e.front.concat([[e.front[e.front.length - 1][0], 132], [33, 132], [33, e.front[0][1]]])];
+  if (e.pocket) held.push(e.pocket);
+  // NK-held = everything outside the held rings (a box with holes)
+  const o = { renderer: warSvg, interactive: false };
+  const shape = L.polygon(window.KOREA_SHAPE, { ...o, stroke: false, fill: false }).addTo(warLayer);
+  shape.getElement().id = 'korea-shape';
+  clipWarToLand();
+  L.polygon([[[43.5, 123], [43.5, 132.5], [32.5, 132.5], [32.5, 123]], ...held], { ...o, stroke: false, fillColor: nk, fillOpacity: .38 }).addTo(warLayer);
+  held.forEach(r => L.polygon(r, { ...o, stroke: false, fillColor: rok, fillOpacity: .3 }).addTo(warLayer));
+  L.polyline(e.front, { ...o, color: nk, weight: 4, lineCap: 'round' }).addTo(warLayer);
+  L.marker([35.1, 129.04], { icon: L.divIcon({ className: '', iconSize: [28, 28], iconAnchor: [14, 14], html: '<div class="pin" style="--c:var(--rok)" data-state="current">釜</div>' }) }).addTo(warLayer);
+  if (e.pocket) {  // label the evacuation beachhead so the small blue patch reads as intentional
+    const c = e.pocket.reduce((a, q) => [a[0] + q[0] / e.pocket.length, a[1] + q[1] / e.pocket.length], [0, 0]);
+    L.marker(c, { icon: L.divIcon({ className: '', iconSize: [28, 28], iconAnchor: [14, 14], html: '<div class="pin" style="--c:var(--rok)" data-state="current">興</div>' }) })
+      .bindTooltip(e.pocketLabel || '', { permanent: true, direction: 'right', offset: [16, 0], className: 'war-tip' }).addTo(warLayer);
+  }
+}
+function setEv(k) {
+  ev = k;
+  document.querySelectorAll('.list.war li').forEach((li, i) => li.classList.toggle('on', i === ev));
+  const on = document.querySelector('.list.war li.on'); if (on) on.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  drawWar();
+}
+$('#card').addEventListener('click', e => { const li = e.target.closest('[data-ev]'); if (li) setEv(+li.dataset.ev); });
+
+// ---------- touch: buttons + swipe on the photo and the panel ----------
+const touchUI = () => innerWidth <= 760 || matchMedia('(hover: none)').matches;
+$('#pgNext').onclick = () => next();
+$('#pgPrev').onclick = () => prev();
+let sx = 0, sy = 0;
+['#stage', '#panel'].forEach(sel => {
+  const el = $(sel);
+  el.addEventListener('touchstart', e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+  el.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) (dx < 0 ? next : prev)();
+  }, { passive: true });
+});
+
+// ---------- photo stage ----------
+let stageList = [], mi = 0;
+function stageMedia(list, opts = {}) {
+  stageList = list; mi = 0;
+  document.body.classList.toggle('nomini', !!opts.noMini);
+  $('#stage .thumbs').innerHTML = opts.noThumbs || list.length < 2 ? '' : list.map((m, i) =>
+    `<button data-mi="${i}">${m.type === 'video' ? `<video src="${encodeURI(m.src)}#t=0.1" muted preload="metadata"></video>` : `<img src="${encodeURI(m.src)}" loading="lazy" alt="">`}</button>`).join('');
+  showMedia();
+}
+// Decode an image before it goes on screen, so the stage never shows a blank frame.
+const decoded = new Map();
+function loadImage(src) {
+  if (!decoded.has(src)) {
+    const img = new Image();
+    img.src = encodeURI(src);
+    decoded.set(src, img.decode().then(() => img, () => img));
+  }
+  return decoded.get(src);
+}
+function preloadAround() {
+  const next = slides[idx + 1];
+  const nextMedia = next && next.si != null ? mediaFor(GROUPS[next.di].stops[next.si].id) : [];
+  [stageList[mi + 1], nextMedia[0]].forEach(m => m && m.type === 'image' && loadImage(m.src));
+}
+let showToken = 0;
+async function showMedia() {
+  const m = stageList[mi], token = ++showToken;
+  let el;
+  if (m.type === 'video') {
+    el = document.createElement('video');
+    Object.assign(el, { src: encodeURI(m.src), controls: true, muted: true, autoplay: true, loop: true, playsInline: true });
+  } else {
+    el = (await loadImage(m.src)).cloneNode();
+    el.alt = m.caption || '';
+    if (token !== showToken) return;  // the presenter already moved on
+  }
+  $('#stage .bg').style.backgroundImage = m.type === 'image' ? `url("${encodeURI(m.src)}")` : 'none';
+  $('#stage .fg').replaceChildren(el);
+  if (m.type === 'video') { el.muted = true; el.play().catch(() => {}); }
+  $('#stage .cap').textContent = m.caption || '';
+  $('#stage .cap').style.display = m.caption ? 'block' : 'none';
+  $('#stage .count').textContent = stageList.length > 1 ? `${mi + 1} / ${stageList.length}` : (m.type === 'video' ? '▶ 影片' : '');
+  $('#stage .count').style.display = $('#stage .count').textContent ? 'block' : 'none';
+  document.querySelectorAll('#stage .thumbs button').forEach((b, i) => b.classList.toggle('on', i === mi));
+  preloadAround();
+}
+$('#stage .thumbs').addEventListener('click', e => { const b = e.target.closest('[data-mi]'); if (b) { mi = +b.dataset.mi; showMedia(); } });
+function updateMini(d, s) {
+  setTimeout(() => {
+    mini.invalidateSize();
+    miniLayer.clearLayers();
+    route(d, Infinity, { weight: 3, opacity: .9 }, miniLayer);
+    L.marker([s.lat, s.lng], { icon: pinIcon(d.color, s.num, '', 'current') }).addTo(miniLayer);
+    mini.setView([s.lat, s.lng], 13, { animate: false });
+  }, 30);
+}
+
+// ---------- render ----------
+let idx = 0;
+function render() {
+  const sl = slides[idx];
+  const d = sl.di != null ? GROUPS[sl.di] : null;
+  const s = d && sl.si != null ? d.stops[sl.si] : null;
+  const color = d ? d.color : '#e6457a';
+  const media = s ? mediaFor(s.id) : sl.type === 'gallery' ? mediaFor('_unsorted') : [];
+  const staged = (sl.type === 'stop' || sl.type === 'gallery') && media.length > 0 || sl.type === 'quiz';
+  document.body.classList.toggle('staged', staged);
+  document.body.classList.toggle('wide', sl.type === 'budget');
+  document.documentElement.style.setProperty('--accent', color);
+  $('#panel').style.setProperty('--c', color);
+
+  layer.clearLayers();
+  warLayer.clearLayers();
+  ALL.forEach(x => setPin(x, 'hidden'));
+  const pastDays = upto => T.days.slice(0, upto).forEach(pd => { route(pd, Infinity, { opacity: .3 }); pd.stops.forEach(x => x.kind !== 'flight' && setPin(x, 'faded')); });
+  const allRoutes = (style, pinState) => T.days.forEach(pd => { route(pd, Infinity, style); if (pinState) pd.stops.forEach(x => x.kind !== 'flight' && setPin(x, pinState)); });
+
+  switch (sl.type) {
+    case 'title': case 'part':
+      allRoutes({ opacity: .4, dashArray: '1 8', weight: 3 });
+      flyBounds(boundsOf(localStops), 12); break;
+    case 'history': {
+      if (T.history[sl.i].legend) { drawWar(); map.flyToBounds([[34.0, 125.0], [42.6, 130.6]], { ...padding(), duration: 1.6 }); break; }
+      const pins = (T.history[sl.i].pins || []).map(id => ALL.find(x => x.id === id)).filter(Boolean);
+      allRoutes({ opacity: pins.length ? .2 : .4, dashArray: '1 8', weight: 3 });
+      pins.forEach(x => setPin(x, 'current'));
+      flyBounds(boundsOf(pins.length ? pins : localStops), 13); break;
+    }
+    case 'budget':
+      allRoutes({ opacity: .25, weight: 3 });
+      flyBounds(boundsOf(localStops), 12); break;
+    case 'day':
+      pastDays(sl.di);
+      route(d, Infinity, { opacity: .6, dashArray: '1 9' });
+      d.stops.forEach(x => x.kind !== 'flight' && setPin(x, 'preview'));
+      droppedPins(d, false);
+      flyBounds(boundsOf(d.stops.filter(x => x.kind !== 'flight')), 14); break;
+    case 'quiz':
+      stageMedia([media.find(m => m.type === 'image')], { noMini: true, noThumbs: true }); break;
+    case 'stop':
+      pastDays(sl.di);
+      route(d, sl.si, { opacity: .95 });
+      d.stops.forEach(x => x.kind !== 'flight' && setPin(x, x.si < sl.si ? 'past' : x.si === sl.si ? 'current' : 'preview'));
+      if (s.kind === 'flight') { flightArc(); flyBounds(boundsOf([TPE, PUS]), 6); }
+      else if (s.kind === 'airport') { flightArc(); flyPoint(s, 11); }
+      else flyPoint(s, s.zoom || 15);
+      if (staged) { stageMedia(media, { noMini: s.kind === 'flight' }); if (s.kind !== 'flight') updateMini(d, s); }
+      break;
+    case 'gallery':
+      stageMedia(media, { noMini: true }); break;
+    default:
+      allRoutes({ opacity: .95 }, 'past');
+      flyBounds(boundsOf(localStops), 12);
+  }
+  if (!staged) { showToken++; $('#stage .fg').innerHTML = ''; }
+
+  $('#card').innerHTML = `<div class="enter">${cards[sl.type](sl, d, s)}</div>`;
+  $('#panel').scrollTop = 0;
+  document.querySelectorAll('.daychip').forEach(b => b.classList.toggle('on', d && +b.dataset.di === sl.di));
+  document.querySelector('.partchip').classList.toggle('on', idx > 0 && idx < slides.findIndex(x => x.part === 2));
+  $('#progress').style.width = `${(idx / (slides.length - 1)) * 100}%`;
+  history.replaceState(null, '', '#' + idx);
+  preloadAround();
+}
+function go(k) { if (k < 0) return; const back = k < idx; idx = Math.max(0, Math.min(slides.length - 1, k)); const w = warSlide(); ev = w && back ? w.timeline.length - 1 : 0; render(); }
+const staged = () => document.body.classList.contains('staged') && stageList.length > 1;
+function next() { const w = warSlide(); if (w && ev < w.timeline.length - 1) setEv(ev + 1); else if (staged() && mi < stageList.length - 1) { mi++; showMedia(); } else go(idx + 1); }
+function prev() { if (warSlide() && ev > 0) setEv(ev - 1); else if (staged() && mi > 0) { mi--; showMedia(); } else go(idx - 1); }
+
+$('#card').addEventListener('click', e => {
+  const j = e.target.closest('[data-jump]');
+  if (j) { const [di, si] = j.dataset.jump.split(':').map(Number); go(slides.findIndex(x => x.type === 'stop' && x.di === di && x.si === si)); return; }
+  const dd = e.target.closest('[data-day]');
+  if (dd) go(slides.findIndex(x => x.type === 'day' && x.di === +dd.dataset.day));
+});
+
+// hover tooltip for chart marks
+const tip = $('#tip');
+addEventListener('mousemove', e => {
+  const t = e.target.closest && e.target.closest('[data-tip]');
+  if (!t) { tip.style.display = 'none'; return; }
+  tip.textContent = t.dataset.tip; tip.style.display = 'block';
+  tip.style.left = Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 8) + 'px';
+  tip.style.top = (e.clientY + 16) + 'px';
+});
+
+// ---------- keys ----------
+addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key;
+  if (['ArrowRight', 'PageDown', ' ', 'Enter'].includes(k)) { e.preventDefault(); next(); }
+  else if (['ArrowLeft', 'PageUp', 'Backspace'].includes(k)) { e.preventDefault(); prev(); }
+  else if (k === 'Home' || k === '0') go(0);
+  else if (k === 'End') go(slides.length - 1);
+  else if (k === 'i' || k === 'I') go(slides.findIndex(x => x.type === 'part'));
+  else if (/^[1-9]$/.test(k) && T.days[+k - 1]) go(slides.findIndex(x => x.type === 'day' && x.di === +k - 1));
+  else if (k === 'm' || k === 'M') { document.body.classList.toggle('hide-panel'); setTimeout(() => { render(); }, 60); }
+  else if (k === 't' || k === 'T') { document.documentElement.dataset.theme = isDark() ? 'light' : 'dark'; syncTiles(); }
+  else if (k === 'f' || k === 'F') { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); }
+});
+
+// #<slide> or #<slide>.<event> (e.g. #3.4 = the war slide at its 5th event)
+const [startSlide, startEv] = location.hash.slice(1).split('.').map(Number);
+go(startSlide || 0);
+if (startEv && warSlide()) setEv(startEv);
+</script>
+</body>
+</html>
