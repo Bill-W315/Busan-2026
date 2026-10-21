@@ -173,6 +173,8 @@ body.nomini #mini { display: none; }
 #hint kbd { font: 600 11px Inter, sans-serif; background: var(--chip); border-radius: 4px; padding: 1px 5px; }
 body.staged #hint { display: none; }
 
+/* fast repeated taps must not trigger double-tap zoom (pinch-zoom still works) */
+html, body, #pager button, #panel, #stage, #top { touch-action: manipulation; }
 #pager { display: none; position: fixed; z-index: 1002; right: 16px; bottom: 16px; gap: 10px; }
 #pager button { width: 52px; height: 52px; border-radius: 50%; border: 0; font: 600 28px/1 Inter, sans-serif; color: #fff; background: var(--accent); box-shadow: var(--shadow); cursor: pointer; }
 #pager button:first-child { background: var(--panel); color: var(--ink); }
@@ -492,6 +494,7 @@ $('#card').addEventListener('click', e => { const li = e.target.closest('[data-e
 const touchUI = () => innerWidth <= 760 || matchMedia('(hover: none)').matches;
 $('#pgNext').onclick = () => next();
 $('#pgPrev').onclick = () => prev();
+document.getElementById('pager').addEventListener('dblclick', e => e.preventDefault());
 let sx = 0, sy = 0;
 ['#stage', '#panel'].forEach(sel => {
   const el = $(sel);
