@@ -195,7 +195,9 @@ body.staged #hint { display: none; }
   body.hide-panel #panel { transform: translateY(calc(100% + 16px)); }
   #stage { top: 56px; left: 8px; right: 8px; bottom: calc(50vh + 16px); }
   body.staged.hide-panel #stage { bottom: 8px; right: 8px; }
-  #mini { width: 120px; height: 90px; }
+  #mini { display: none; }  /* too small a stage on a phone; the photo matters more */
+  body:not(.nomini) #stage .cap { padding-left: 20px; }
+  #stage .cap { padding-right: 20px; }
   h1 { font-size: 36px; } h2 { font-size: 26px; } .hero { font-size: 44px; } .blurb { font-size: 18px; }
   .legend, .stats.three { grid-template-columns: 1fr 1fr; }
 }
